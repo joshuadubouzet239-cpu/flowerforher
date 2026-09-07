@@ -1,0 +1,387 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>A Bouquet For You</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body {
+    height: 100%;
+    background: linear-gradient(160deg, #fff9f6 0%, #ffeef2 55%, #ffe1e9 100%);
+    overflow: hidden;
+    font-family: 'Georgia', serif;
+  }
+  .scene { position: relative; width: 100%; height: 100vh; }
+  .caption {
+    position: absolute;
+    top: 6%;
+    width: 100%;
+    text-align: center;
+    color: #a9506e;
+    letter-spacing: 1px;
+    opacity: 0;
+    animation: captionIn 2.6s ease-out 0.6s forwards;
+    pointer-events: none;
+  }
+  @keyframes captionIn {
+    from { opacity: 0; transform: translateY(-10px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  .caption h1 { font-size: 1.8em; color: #e0688f; text-shadow: 0 0 14px rgba(224,104,143,0.25); }
+  .caption p { margin-top: 6px; font-style: italic; color: #c98aa0; font-size: 0.95em; }
+  .hint {
+    position: absolute;
+    bottom: 3%;
+    width: 100%;
+    text-align: center;
+    color: #b98198;
+    font-size: 0.8em;
+    font-style: italic;
+    opacity: 0;
+    animation: captionIn 2s ease-out 4s forwards;
+    pointer-events: none;
+  }
+  #canvas { position: absolute; inset: 0; width: 100%; height: 100%; cursor: pointer; }
+  .stem {
+    stroke: #6ea36f;
+    stroke-width: 4;
+    fill: none;
+  }
+  .leaf { fill: #7cb37c; opacity: 0; animation: fadeIn 0.6s ease-out forwards; }
+  @keyframes fadeIn { to { opacity: 1; } }
+  /* flower blooms once, then holds still in standby (no continuous motion) */
+  .bloom {
+    opacity: 0;
+    transform: translate(var(--tx), var(--ty)) scale(0.15);
+    animation: bloom 1.8s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+  }
+  @keyframes bloom {
+    60% { opacity: 1; }
+    to { opacity: 1; transform: translate(var(--tx), var(--ty)) scale(var(--fscale, 1)); }
+  }
+  .wrap-paper { opacity: 0; animation: fadeIn 1.8s ease-out 3s forwards; }
+  .rating {
+    position: absolute;
+    bottom: 9%;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    opacity: 0;
+    animation: captionIn 2s ease-out 4.4s forwards;
+  }
+  .rating .label {
+    font-size: 0.75em;
+    font-style: italic;
+    color: #7a2e46;
+    background: linear-gradient(135deg, #ffd6e4, #ffb3c9);
+    padding: 4px 14px;
+    border-radius: 999px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    box-shadow: 0 2px 8px rgba(224, 104, 143, 0.25);
+  }
+  .rating .label svg { width: 14px; height: 14px; }
+  .rating .hearts { display: flex; gap: 4px; }
+  .rating .heart {
+    cursor: pointer;
+    font-size: 1.5em;
+    line-height: 1;
+    color: #f3c9d6;
+    transition: transform 0.15s ease, color 0.15s ease;
+    user-select: none;
+  }
+  .rating .heart:hover { transform: scale(1.15); }
+  .rating .heart.filled { color: #e0688f; }
+  .rating .thanks {
+    font-size: 0.75em;
+    color: #c98aa0;
+    font-style: italic;
+    height: 1em;
+  }
+  .credit {
+    position: absolute;
+    bottom: 10px;
+    right: 14px;
+    font-size: 0.7em;
+    color: #c98aa0;
+    font-style: italic;
+    opacity: 0;
+    animation: captionIn 2s ease-out 5.2s forwards;
+    pointer-events: none;
+  }
+  #yt-player-wrap {
+    position: absolute;
+    top: -9999px;
+    left: -9999px;
+    width: 200px;
+    height: 200px;
+    pointer-events: none;
+  }
+  @media (max-width: 480px), (max-height: 700px) {
+    .caption { top: 3%; }
+    .caption h1 { font-size: 1.3em; }
+    .caption p { font-size: 0.8em; }
+    .rating { bottom: 7%; gap: 2px; }
+    .rating .label { font-size: 0.65em; padding: 3px 10px; }
+    .rating .heart { font-size: 1.2em; }
+    .hint { font-size: 0.65em; bottom: 2%; }
+    .credit { font-size: 0.6em; bottom: 4px; right: 8px; }
+  }
+</style>
+</head>
+<body>
+  <div class="scene">
+    <div class="caption">
+      <h1>For You</h1>
+      <p>a bouquet, growing just for you</p>
+    </div>
+
+    <svg id="canvas" viewBox="0 0 700 700" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMax meet">
+      <defs>
+        <pattern id="gingham" width="18" height="18" patternUnits="userSpaceOnUse">
+          <rect width="18" height="18" fill="#fff3f6"/>
+          <rect width="9" height="9" fill="#ffd3e0"/>
+          <rect x="9" y="9" width="9" height="9" fill="#ffd3e0"/>
+        </pattern>
+      </defs>
+
+      <g class="wrap-paper" id="wrap">
+        <path d="M235 470 L465 470 L520 640 L180 640 Z" fill="url(#gingham)" stroke="#f0a9c0" stroke-width="2"/>
+        <path d="M235 470 L465 470 L440 560 L260 560 Z" fill="#fff" opacity="0.35"/>
+        <path d="M210 585 C 280 570, 420 570, 490 585" stroke="#f6c9d8" stroke-width="26" fill="none" stroke-linecap="round" opacity="0.85"/>
+        <path d="M320 578 l30 40 l30 -40" stroke="#f2a9c4" stroke-width="16" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+        <ellipse cx="350" cy="580" rx="22" ry="14" fill="#f8bdd2"/>
+      </g>
+
+      <g id="flowers"></g>
+    </svg>
+
+    <div class="hint">tap anywhere to grow a new flower</div>
+
+    <div class="rating" id="rating">
+      <div class="label">
+        <svg viewBox="0 0 40 40"><g fill="#e8749c"><ellipse rx="8" ry="13" transform="translate(20,20) rotate(0)"/><ellipse rx="8" ry="13" transform="translate(20,20) rotate(60)"/><ellipse rx="8" ry="13" transform="translate(20,20) rotate(120)"/><ellipse rx="8" ry="13" transform="translate(20,20) rotate(180)"/><ellipse rx="8" ry="13" transform="translate(20,20) rotate(240)"/><ellipse rx="8" ry="13" transform="translate(20,20) rotate(300)"/></g><circle cx="20" cy="20" r="6" fill="#fff3d6"/></svg>
+        rate this bouquet
+        <svg viewBox="0 0 40 40"><g fill="#e8749c"><ellipse rx="8" ry="13" transform="translate(20,20) rotate(0)"/><ellipse rx="8" ry="13" transform="translate(20,20) rotate(60)"/><ellipse rx="8" ry="13" transform="translate(20,20) rotate(120)"/><ellipse rx="8" ry="13" transform="translate(20,20) rotate(180)"/><ellipse rx="8" ry="13" transform="translate(20,20) rotate(240)"/><ellipse rx="8" ry="13" transform="translate(20,20) rotate(300)"/></g><circle cx="20" cy="20" r="6" fill="#fff3d6"/></svg>
+      </div>
+      <div class="hearts">
+        <span class="heart" data-value="1">&#10084;</span>
+        <span class="heart" data-value="2">&#10084;</span>
+        <span class="heart" data-value="3">&#10084;</span>
+        <span class="heart" data-value="4">&#10084;</span>
+        <span class="heart" data-value="5">&#10084;</span>
+      </div>
+      <div class="thanks" id="ratingThanks"></div>
+    </div>
+    <div class="credit">made by Joshua, for Alexa</div>
+    <div id="yt-player-wrap"><div id="yt-player"></div></div>
+  </div>
+
+  <script>
+    const svg = document.getElementById('canvas');
+    const flowersGroup = document.getElementById('flowers');
+    const baseX = 350, baseY = 560;
+
+    // --- generic petal-shape builders ---
+    function petalFlower(count, color, centerColor, rx, ry) {
+      let s = '<g fill="' + color + '">';
+      for (let i = 0; i < count; i++) {
+        const a = (360 / count) * i;
+        s += '<ellipse rx="' + rx + '" ry="' + ry + '" transform="rotate(' + a + ')"/>';
+      }
+      s += '</g><circle r="' + (rx * 0.8) + '" fill="' + centerColor + '"/>';
+      return s;
+    }
+    function starFlower(points, color, centerColor, outerR) {
+      const inner = outerR * 0.22;
+      let pts = '';
+      for (let i = 0; i < points * 2; i++) {
+        const r = i % 2 === 0 ? outerR : inner;
+        const a = (Math.PI / points) * i - Math.PI / 2;
+        pts += (r * Math.cos(a)) + ',' + (r * Math.sin(a)) + ' ';
+      }
+      return '<polygon points="' + pts + '" fill="' + color + '"/><circle r="' + (outerR * 0.28) + '" fill="' + centerColor + '"/>';
+    }
+    function cupFlower(color, darkColor, size) {
+      const s = size || 30;
+      return '<path d="M0,-' + s + ' C -' + (s*0.47) + ',-' + (s*0.8) + ' -' + (s*0.53) + ',-' + (s*0.2) + ' 0,' + (s*0.33) + ' C ' + (s*0.53) + ',-' + (s*0.2) + ' ' + (s*0.47) + ',-' + (s*0.8) + ' 0,-' + s + ' Z" fill="' + color + '"/><path d="M-' + (s*0.1) + ',-' + (s*0.87) + ' C -' + (s*0.33) + ',-' + (s*0.6) + ' -' + (s*0.3) + ',-' + (s*0.13) + ' 0,' + (s*0.2) + ' Z" fill="' + darkColor + '" opacity="0.6"/>';
+    }
+    function clusterFlower(color, centerColor, count, spread, dotR) {
+      let s = '<g fill="' + color + '">';
+      for (let i = 0; i < count; i++) {
+        const a = Math.random() * Math.PI * 2;
+        const r = Math.random() * spread;
+        s += '<circle r="' + dotR + '" cx="' + (r*Math.cos(a)) + '" cy="' + (r*Math.sin(a)) + '"/>';
+      }
+      s += '</g><circle r="' + (dotR*0.6) + '" fill="' + centerColor + '"/>';
+      return s;
+    }
+
+    // --- the 25 flower kinds ---
+    const kinds = {
+      'Rose':          () => petalFlower(6, '#e8749c', '#fff3d6', 9, 15),
+      'Sunflower':     () => petalFlower(6, '#f2b229', '#5a3b22', 10, 26),
+      'Tulip':         () => cupFlower('#f4956b', '#c2451f', 28),
+      'Lily':          () => starFlower(6, '#f2795a', '#f7d24a', 30),
+      'Daisy':         () => starFlower(8, '#ffffff', '#f5c95c', 26),
+      'Orchid':        () => cupFlower('#c58ee0', '#7a3f9e', 26),
+      'Peony':         () => petalFlower(9, '#f2a0bd', '#fff3d6', 11, 18),
+      'Marigold':      () => petalFlower(10, '#f2941f', '#c76a10', 6, 14),
+      'Daffodil':      () => starFlower(6, '#fff3c4', '#f2c230', 26),
+      'Carnation':     () => clusterFlower('#e8749c', '#fff3d6', 26, 12, 5),
+      'Chrysanthemum': () => petalFlower(14, '#ffffff', '#f5c95c', 3, 22),
+      'Hydrangea':     () => clusterFlower('#a7c7e7', '#e3c9f0', 22, 16, 5),
+      'Lavender':      () => clusterFlower('#8a6fc9', '#6b4fa0', 18, 10, 4),
+      'Hibiscus':      () => starFlower(5, '#e0433f', '#f7d24a', 32),
+      'Iris':          () => starFlower(6, '#6a5acd', '#f7d24a', 28),
+      'Dahlia':        () => petalFlower(10, '#d6497a', '#fff3d6', 6, 20),
+      'Jasmine':       () => starFlower(5, '#ffffff', '#f5c95c', 16),
+      'Lotus':         () => petalFlower(8, '#f7b8cc', '#fff3d6', 13, 22),
+      'Camellia':      () => petalFlower(7, '#e0433f', '#fff3d6', 10, 16),
+      'Gardenia':      () => petalFlower(8, '#fffdf5', '#f0e2a0', 12, 20),
+      'Magnolia':      () => cupFlower('#fbe4ea', '#e8a7bc', 34),
+      'Pansy':         () => starFlower(5, '#8a5fc9', '#f7d24a', 24),
+      'Petunia':       () => cupFlower('#c86fb0', '#802f66', 26),
+      'Ranunculus':    () => petalFlower(12, '#f4956b', '#fff3d6', 5, 12),
+      'Bleeding Heart':() => cupFlower('#f2a0bd', '#e8749c', 22)
+    };
+    const kindNames = Object.keys(kinds);
+    function randomKind() { return kinds[kindNames[Math.floor(Math.random() * kindNames.length)]](); }
+
+    function randomBetween(a, b) { return a + Math.random() * (b - a); }
+
+    // grow a stem from the wrap base up to (x, y), bloom a random flower there, then it stays in standby
+    function growFlowerAt(x, y, delayGrow) {
+      const dGrow = delayGrow || 0;
+      const midX = (baseX + x) / 2 + randomBetween(-30, 30);
+      const midY = (baseY + y) / 2;
+      const stem = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+      stem.setAttribute('class', 'stem');
+      stem.setAttribute('d', 'M' + baseX + ' ' + baseY + ' Q ' + midX + ' ' + midY + ', ' + x + ' ' + y);
+      flowersGroup.appendChild(stem);
+      const len = stem.getTotalLength(); // measure actual length so no fixed limit ever cuts it short
+      stem.style.strokeDasharray = len;
+      stem.style.strokeDashoffset = len;
+      stem.getBoundingClientRect(); // force reflow before transition starts
+      stem.style.transition = 'stroke-dashoffset 2.4s ease-out';
+      stem.style.transitionDelay = dGrow + 's';
+      requestAnimationFrame(() => { stem.style.strokeDashoffset = '0'; });
+
+      const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+      g.setAttribute('class', 'bloom');
+      g.style.setProperty('--tx', x + 'px');
+      g.style.setProperty('--ty', y + 'px');
+      g.style.setProperty('--fscale', randomBetween(0.8, 1.7)); // wider range of grown flower sizes
+      g.style.animationDelay = (dGrow + 2.1) + 's';
+      g.innerHTML = randomKind(); // holds still once bloomed (standby)
+      flowersGroup.appendChild(g);
+    }
+
+    // initial rounded cluster of flowers, arranged like a hand-tied bouquet
+    const initialPositions = [
+      [250, 330], [300, 290], [350, 270], [400, 285], [450, 320],
+      [280, 380], [330, 350], [380, 355], [420, 385],
+      [230, 410], [470, 410], [350, 400]
+    ];
+    initialPositions.forEach((p, i) => growFlowerAt(p[0], p[1], 0.3 + i * 0.3));
+    growFlowerAt(210, 190, 4); // tall accent sprig
+
+    // 1-5 heart rating box: click a heart to fill it and everything before it
+    const heartEls = Array.from(document.querySelectorAll('.rating .heart'));
+    const thanksEl = document.getElementById('ratingThanks');
+    let currentRating = 0;
+
+    function paintHearts(value) {
+      heartEls.forEach(h => {
+        h.classList.toggle('filled', Number(h.dataset.value) <= value);
+      });
+    }
+    heartEls.forEach(h => {
+      h.addEventListener('mouseenter', () => paintHearts(Number(h.dataset.value)));
+      h.addEventListener('click', (evt) => {
+        evt.stopPropagation(); // don't also trigger the grow-a-flower click behind it
+        currentRating = Number(h.dataset.value);
+        paintHearts(currentRating);
+        thanksEl.textContent = 'thanks for the ' + currentRating + ' \u2764';
+      });
+    });
+    document.getElementById('rating').addEventListener('mouseleave', () => paintHearts(currentRating));
+
+    // --- background music: keshi - Forever (Official Visualizer), chorus only ---
+    // Loops just the chorus section instead of the full track.
+    // Approximate timestamps below (adjust CHORUS_START/CHORUS_END if the
+    // loop starts/ends a beat or two off from where the chorus actually is).
+    const CHORUS_START = 48;  // seconds into the video
+    const CHORUS_END = 78;    // seconds into the video
+
+    let ytPlayer = null;
+    let musicStarted = false;
+
+    const ytTag = document.createElement('script');
+    ytTag.src = 'https://www.youtube.com/iframe_api';
+    document.head.appendChild(ytTag);
+
+    window.onYouTubeIframeAPIReady = function () {
+      ytPlayer = new YT.Player('yt-player', {
+        videoId: 'Rr3j5EiAxcM', // keshi - Forever (Official Visualizer)
+        width: '200',
+        height: '200',
+        playerVars: {
+          autoplay: 1,
+          mute: 0,
+          start: CHORUS_START,
+          end: CHORUS_END,
+          controls: 0,
+          disablekb: 1,
+          modestbranding: 1,
+          playsinline: 1
+        },
+        events: {
+          onReady: (e) => {
+            e.target.setVolume(60);
+            e.target.playVideo();
+            setTimeout(() => {
+              if (e.target.isMuted() || e.target.getPlayerState() !== 1) {
+                musicStarted = false;
+              } else {
+                musicStarted = true;
+              }
+            }, 600);
+          },
+          onStateChange: (e) => {
+            // loop back to the start of the chorus when the clipped segment ends
+            if (e.data === YT.PlayerState.ENDED) {
+              e.target.seekTo(CHORUS_START, true);
+              e.target.playVideo();
+            }
+          }
+        }
+      });
+    };
+
+    function startMusicOnFirstInteraction() {
+      if (musicStarted || !ytPlayer) return;
+      ytPlayer.unMute();
+      ytPlayer.setVolume(60);
+      ytPlayer.seekTo(CHORUS_START, true);
+      ytPlayer.playVideo();
+      musicStarted = true;
+    }
+    document.addEventListener('click', startMusicOnFirstInteraction, { once: false });
+
+    // click anywhere: grow one new flower there, after a short delay
+    svg.addEventListener('click', (evt) => {
+      const pt = svg.createSVGPoint();
+      pt.x = evt.clientX;
+      pt.y = evt.clientY;
+      const loc = pt.matrixTransform(svg.getScreenCTM().inverse());
+      setTimeout(() => { growFlowerAt(loc.x, loc.y, 0); }, 500);
+    });
+  </script>
+</body>
+</html>
